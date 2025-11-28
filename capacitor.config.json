@@ -1,0 +1,9 @@
+{
+  "appId": "com.sillexpress.app",
+  "appName": "SellExpress",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https"
+  }
+}
