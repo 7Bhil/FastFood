@@ -5,6 +5,7 @@ import { logout } from '../../store/slices/authSlice.jsx'
 
 const Navbar = () => {
   const { isAuthenticated, user } = useSelector(state => state.auth)
+  const { items } = useSelector(state => state.cart)
   const [showMenu, setShowMenu] = useState(false)
   const dispatch = useDispatch()
 
@@ -32,67 +33,80 @@ const Navbar = () => {
     }
   }
 
+  // Calculer le total d'articles dans le panier
+  const cartItemsCount = items.reduce((total, item) => total + item.quantity, 0)
+
   return (
-    <div className="sticky top-0 z-50 bg-white shadow-sm safe-area-top">
-      <div className="flex items-center justify-between h-14 px-4">
+    <div className="sticky top-0 z-50 bg-white shadow-lg safe-area-top">
+      <div className="flex items-center justify-between h-16 px-4">
         {/* Logo */}
         <Link to="/" className="flex items-center" onClick={() => setShowMenu(false)}>
-          <span className="text-xl font-bold text-orange-500">🍔 FoodApp</span>
+          <span className="text-2xl font-bold bg-gradient-to-r from-orange-500 to-red-500 bg-clip-text text-transparent">
+             FoodApp
+          </span>
         </Link>
 
         {/* Actions droite */}
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-2">
           {isAuthenticated ? (
             <>
-              {/* Lien vers le dashboard selon le rôle */}
-              {user?.role !== 'customer' && (
-                <Link 
-                  to={getDashboardLink()} 
-                  className="bg-orange-500 text-white px-3 py-1.5 rounded-full text-xs font-medium"
-                  onClick={() => setShowMenu(false)}
-                >
-                  {user?.role === 'restaurant' && '📊 Dashboard'}
-                  {user?.role === 'delivery' && '🚗 Livraisons'}
-                  {user?.role === 'admin' && '⚙️ Admin'}
-                </Link>
-              )}
 
-              {/* Badge panier pour mobile */}
-              {user?.role === 'customer' && (
-                <Link to="/cart" className="relative p-2" onClick={() => setShowMenu(false)}>
-                  <span className="text-xl">🛒</span>
-                </Link>
-              )}
+
+              {/* Badge panier - visible pour tous les rôles */}
+              <Link 
+                to="/cart" 
+                className="relative p-2 active:bg-orange-50 rounded-full transition-colors" 
+                onClick={() => setShowMenu(false)}
+              >
+                <span className="text-2xl">🛒</span>
+                {cartItemsCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-full min-w-[20px] h-5 px-1 text-xs flex items-center justify-center font-bold shadow-lg">
+                    {cartItemsCount}
+                  </span>
+                )}
+              </Link>
               
               {/* Menu utilisateur */}
               <div className="relative">
                 <button 
-                  className="flex items-center space-x-1 p-1"
+                  className="flex items-center space-x-1 p-2 active:bg-orange-50 rounded-full transition-colors"
                   onClick={() => setShowMenu(!showMenu)}
                 >
-                  <span className="text-xl">👤</span>
+                  <span className="text-2xl">👤</span>
                 </button>
                 
                 {showMenu && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border z-50">
-                    <div className="p-3 border-b">
-                      <p className="text-sm font-medium">{user?.name || 'Utilisateur'}</p>
-                      <p className="text-xs text-gray-500">{user?.email}</p>
-                      <p className="text-xs text-orange-500 mt-1">{getRoleLabel(user?.role)}</p>
+                  <div className="absolute right-0 mt-2 w-64 bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden z-50">
+                    <div className="p-5 bg-gradient-to-r from-orange-500 to-red-500 text-white">
+                      <p className="text-base font-bold mb-1">{user?.name || 'Utilisateur'}</p>
+                      <p className="text-sm opacity-90 mb-3">{user?.email}</p>
+                      <div className="inline-flex items-center bg-white bg-opacity-20 backdrop-blur-sm rounded-full px-3 py-1.5">
+                        <span className="text-xs font-medium">{getRoleLabel(user?.role)}</span>
+                      </div>
                     </div>
-                    <div className="p-1">
+                    <div className="p-3">
                       <Link
                         to={getDashboardLink()}
-                        className="block px-3 py-2 text-sm hover:bg-gray-100 rounded"
+                        className="flex items-center px-4 py-3 text-base hover:bg-orange-50 rounded-2xl transition-colors font-medium mb-1"
                         onClick={() => setShowMenu(false)}
                       >
-                        {user?.role === 'customer' ? 'Mon profil' : 'Mon dashboard'}
+                        <span className="mr-3 text-xl">{user?.role === 'customer' ? '👤' : '📊'}</span>
+                        <span>{user?.role === 'customer' ? 'Mon profil' : 'Mon dashboard'}</span>
+                      </Link>
+                      <Link
+                        to="/cart"
+                        className="flex items-center px-4 py-3 text-base hover:bg-orange-50 rounded-2xl transition-colors font-medium mb-1"
+                        onClick={() => setShowMenu(false)}
+                      >
+                        <span className="mr-3 text-xl">📦</span>
+                        <span>Mes commandes</span>
                       </Link>
                       <button
                         onClick={handleLogout}
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded"
+                        className="w-full flex items-center px-4 py-3 text-base hover:bg-red-50 rounded-2xl transition-colors font-medium text-red-600"
                       >
-                        Déconnexion
+                        <span className="mr-3 text-xl">🚪</span>
+                        <span>Déconnexion</span>
                       </button>
                     </div>
                   </div>
@@ -100,12 +114,29 @@ const Navbar = () => {
               </div>
             </>
           ) : (
-            <Link 
-              to="/login" 
-              className="bg-orange-500 text-white px-4 py-2 rounded-full text-sm font-medium"
-            >
-              Connexion
-            </Link>
+            <>
+              {/* Panier accessible même déconnecté */}
+              <Link 
+                to="/cart" 
+                className="relative p-2 active:bg-orange-50 rounded-full transition-colors" 
+                onClick={() => setShowMenu(false)}
+              >
+                <span className="text-2xl">🛒</span>
+                {cartItemsCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-full min-w-[20px] h-5 px-1 text-xs flex items-center justify-center font-bold shadow-lg">
+                    {cartItemsCount}
+                  </span>
+                )}
+              </Link>
+
+              {/* Bouton connexion */}
+              <Link 
+                to="/login" 
+                className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-5 py-2.5 rounded-full text-sm font-bold shadow-lg active:scale-95 transition-all"
+              >
+                Connexion
+              </Link>
+            </>
           )}
         </div>
       </div>
@@ -113,7 +144,7 @@ const Navbar = () => {
       {/* Overlay pour fermer le menu */}
       {showMenu && (
         <div 
-          className="fixed inset-0 z-40" 
+          className="fixed inset-0 bg-black bg-opacity-30 z-40" 
           onClick={() => setShowMenu(false)}
         ></div>
       )}

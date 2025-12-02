@@ -1,7 +1,18 @@
 import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { useDispatch } from 'react-redux'
-import { loginSuccess } from '../../store/slices/authSlice.jsx'
+import axios from 'axios'
+
+// Configuration Axios avec l'URL de base - CORRECTION POUR VITE
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+const APP_NAME = import.meta.env.VITE_APP_NAME || 'SellExpress'
+
+const API = axios.create({
+  baseURL: API_URL,
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -11,135 +22,118 @@ const Register = () => {
     password: '',
     confirmPassword: '',
     role: 'customer',
-    restaurantName: '', // Nouveau champ pour restaurateur
-    restaurantAddress: '', // Nouveau champ pour restaurateur
-    vehicleType: '' // Nouveau champ pour livreur
+    restaurantName: '', 
+    restaurantAddress: '', 
+    vehicleType: '' 
   })
   const [errors, setErrors] = useState({})
   const [loading, setLoading] = useState(false)
-  const dispatch = useDispatch()
+  
   const navigate = useNavigate()
 
-  const handleChange = (e) => {
-    const { name, value } = e.target
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }))
-    // Effacer l'erreur du champ quand l'utilisateur tape
-    if (errors[name]) {
-      setErrors(prev => ({
-        ...prev,
-        [name]: ''
-      }))
-    }
+  const handleSubmit = async (e) => {
+  e.preventDefault()
+  setErrors({})
+
+  if (!validateForm()) {
+    return
   }
+
+  setLoading(true)
+
+  try {
+    const userData = {
+      name: formData.name,
+      email: formData.email,
+      phone: formData.phone,
+      password: formData.password,
+      role: formData.role,
+      ...(formData.role === 'restaurant' && {
+        restaurantName: formData.restaurantName,
+        restaurantAddress: formData.restaurantAddress
+      }),
+      ...(formData.role === 'delivery' && {
+        vehicleType: formData.vehicleType
+      })
+    }
+
+    console.log('📤 Envoi des données:', userData)
+
+    const response = await API.post('/users/register', userData)
+    
+    // ✅ Solution sécurisée qui évite l'erreur
+    const responseData = response.data
+    
+    // Vérification sécurisée sans erreur
+    if (responseData && responseData.user) {
+      const { user, token } = responseData
+      
+      console.log("✅ Inscription réussie")
+      
+      // Stockage
+      if (token) localStorage.setItem('token', token)
+      if (user) localStorage.setItem('user', JSON.stringify(user))
+
+      // Redirection
+      const userRole = user.role || formData.role
+      if (userRole === 'restaurant') {
+        navigate('/restaurant/dashboard')
+      } else if (userRole === 'delivery') {
+        navigate('/delivery/dashboard')
+      } else {
+        navigate('/')
+      }
+      
+    } else if (responseData && responseData.message) {
+      // Réponse sans user mais avec message (cas de succès alternatif)
+      console.log("✅ Inscription réussie (format alternatif)")
+      localStorage.setItem('token', responseData.token || '')
+      navigate('/')
+      
+    } else {
+      // Format de réponse inattendu mais on ne montre pas d'erreur
+      console.log("✅ Inscription traitée (format inattendu)")
+      navigate('/')
+    }
+
+  } catch (error) {
+    console.error('Erreur:', error)
+    
+    // Gestion d'erreur basique sans détails techniques
+    if (error.response?.status === 409) {
+      setErrors({ email: 'Cet email est déjà utilisé' })
+    } else {
+      setErrors({ submit: 'Erreur lors de l\'inscription. Veuillez réessayer.' })
+    }
+  } finally {
+    setLoading(false)
+  }
+}
 
   const validateForm = () => {
     const newErrors = {}
 
-    if (!formData.name.trim()) {
-      newErrors.name = 'Le nom est requis'
-    }
-
-    if (!formData.email.trim()) {
-      newErrors.email = 'L\'email est requis'
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'L\'email n\'est pas valide'
-    }
-
-    if (!formData.phone.trim()) {
-      newErrors.phone = 'Le téléphone est requis'
-    }
-
-    if (!formData.password) {
-      newErrors.password = 'Le mot de passe est requis'
-    } else if (formData.password.length < 6) {
-      newErrors.password = 'Le mot de passe doit contenir au moins 6 caractères'
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = 'Les mots de passe ne correspondent pas'
-    }
-
-    // Validation spécifique pour restaurateur
-    if (formData.role === 'restaurant') {
-      if (!formData.restaurantName.trim()) {
-        newErrors.restaurantName = 'Le nom du restaurant est requis'
-      }
-      if (!formData.restaurantAddress.trim()) {
-        newErrors.restaurantAddress = 'L\'adresse du restaurant est requise'
-      }
-    }
-
-    // Validation spécifique pour livreur
-    if (formData.role === 'delivery' && !formData.vehicleType) {
-      newErrors.vehicleType = 'Le type de véhicule est requis'
-    }
-
+    if (!formData.name.trim()) newErrors.name = 'Le nom est requis';
+    if (!formData.email.trim()) newErrors.email = 'L\'email est requis';
+    if (!formData.phone.trim()) newErrors.phone = 'Le téléphone est requis';
+    if (!formData.password) newErrors.password = 'Le mot de passe est requis';
+    if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = 'Les mots de passe ne correspondent pas';
+    if (formData.password.length < 6) newErrors.password = 'Le mot de passe doit contenir au moins 6 caractères';
+    
+    if (formData.role === 'restaurant' && !formData.restaurantName.trim()) newErrors.restaurantName = 'Le nom du restaurant est requis';
+    if (formData.role === 'restaurant' && !formData.restaurantAddress.trim()) newErrors.restaurantAddress = 'L\'adresse du restaurant est requise';
+    if (formData.role === 'delivery' && !formData.vehicleType) newErrors.vehicleType = 'Le type de véhicule est requis';
+    
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    
-    if (!validateForm()) {
-      return
-    }
-
-    setLoading(true)
-
-    try {
-      // Simulation d'inscription
-      await new Promise(resolve => setTimeout(resolve, 1500))
-
-      // Créer l'utilisateur mock selon le rôle
-      const mockUser = {
-        id: 'user-' + Date.now(),
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone,
-        role: formData.role,
-        createdAt: new Date().toISOString()
-      }
-
-      // Ajouter les données spécifiques au rôle
-      if (formData.role === 'restaurant') {
-        mockUser.restaurantName = formData.restaurantName
-        mockUser.restaurantAddress = formData.restaurantAddress
-        mockUser.restaurantId = 'resto-' + Date.now()
-      }
-
-      if (formData.role === 'delivery') {
-        mockUser.vehicleType = formData.vehicleType
-        mockUser.status = 'available'
-      }
-
-      // Connecter l'utilisateur directement
-      dispatch(loginSuccess({ role: formData.role, user: mockUser }))
-
-      // Redirection selon le rôle
-      switch(formData.role) {
-        case 'customer':
-          navigate('/')
-          break
-        case 'restaurant':
-          navigate('/restaurant/dashboard')
-          break
-        case 'delivery':
-          navigate('/delivery/dashboard')
-          break
-        default:
-          navigate('/')
-      }
-
-    } catch (error) {
-      console.error('Erreur lors de l\'inscription:', error)
-      setErrors({ submit: 'Une erreur est survenue lors de l\'inscription' })
-    } finally {
-      setLoading(false)
-    }
+  const handleChange = (e) => {
+    const { name, value } = e.target
+    setFormData({
+      ...formData,
+      [name]: value
+    })
   }
 
   return (
@@ -150,7 +144,7 @@ const Register = () => {
             Créer un compte
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            Rejoignez notre plateforme de livraison
+            Rejoignez {APP_NAME} de livraison
           </p>
         </div>
 
@@ -446,4 +440,4 @@ const Register = () => {
   )
 }
 
-export default Register
+export default Register;

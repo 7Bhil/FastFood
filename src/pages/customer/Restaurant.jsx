@@ -42,13 +42,6 @@ const handleAddToCart = (menuItem, selectedOptions = {}, quantity = 1) => {
     menuItemId: menuItem.id
   }
 
-  dispatch(addToCart({
-    item: cartItem,
-    restaurant: restaurant
-  }))
-
-
-
     dispatch(addToCart({
       item: cartItem,
       restaurant: restaurant

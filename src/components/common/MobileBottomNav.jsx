@@ -43,7 +43,7 @@ const MobileBottomNav = () => {
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 safe-area-bottom">
-      <div className="flex justify-around mb-7 items-center h-16">
+      <div className="flex justify-around mb-4 items-center h-16">
         {navItems.map((item) => (
           <Link
             key={item.path}

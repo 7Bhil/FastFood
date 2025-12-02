@@ -2,6 +2,16 @@ import React, { useState } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import { clearCart } from '../../store/slices/cartSlice.jsx'
+import axios from 'axios'
+
+// ✅ CONFIGURATION API CORRECTE
+const API = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
 
 const Checkout = () => {
   const { items, total, restaurant } = useSelector(state => state.cart)
@@ -19,33 +29,113 @@ const Checkout = () => {
   const EUR_TO_XOF = 1
   const totalXOF = Math.round(total * EUR_TO_XOF)
 
-  const handlePayment = async () => {
-    if (!deliveryAddress.trim()) {
-      alert('Veuillez indiquer votre adresse de livraison')
-      return
-    }
-
-    if (!phoneNumber.trim()) {
-      alert('Veuillez indiquer votre numéro de téléphone')
-      return
-    }
-
-    setIsProcessing(true)
-    
-    // Simulation de traitement de paiement
-    setTimeout(() => {
-      setIsProcessing(false)
-      
-      // Créer une commande simulée
-      const orderId = 'CMD-' + Date.now()
-      
-      // Vider le panier
-      dispatch(clearCart())
-      
-      // Rediriger vers la page de confirmation
-      navigate(`/order-confirmation/${orderId}`)
-    }, 2000)
+ const handlePayment = async () => {
+  if (!deliveryAddress.trim()) {
+    alert('❌ Veuillez indiquer votre adresse de livraison');
+    return;
   }
+
+  if (!phoneNumber.trim()) {
+    alert('❌ Veuillez indiquer votre numéro de téléphone');
+    return;
+  }
+
+  setIsProcessing(true);
+
+  try {
+    const token = localStorage.getItem('token');
+    console.log('🔑 Token présent:', !!token);
+    
+    if (!token) {
+      alert('🔐 Session expirée. Veuillez vous reconnecter.');
+      navigate('/login');
+      return;
+    }
+
+    // Vérifier les données du panier
+    console.log('🛒 Items dans le panier:', items);
+    console.log('🏪 Restaurant data:', restaurant);
+    
+    if (items.length === 0) {
+      alert('🛒 Votre panier est vide');
+      return;
+    }
+
+    // Préparer les données pour l'API
+    const orderData = {
+      items: items.map(item => ({
+        id: item.id,
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+        selectedOptions: item.selectedOptions || {},
+        menuItemId: item.menuItemId || item.id
+      })),
+      deliveryInfo: {
+        address: deliveryAddress.trim(),
+        phone: phoneNumber.trim(),
+        deliveryTime: deliveryTime,
+        specialInstructions: specialInstructions.trim()
+      },
+      paymentMethod: paymentMethod,
+      totals: {
+        subtotal: totalXOF,
+        deliveryFee: deliveryFee,
+        total: finalTotalXOF
+      }
+    };
+
+    // 🔥 CORRECTION : Ne pas envoyer restaurant.id s'il n'est pas un ObjectId valide
+    // OU envoyer seulement le nom et l'adresse sans l'ID
+    if (restaurant) {
+      orderData.restaurant = {
+        // ❌ NE PAS envoyer l'ID s'il n'est pas un ObjectId MongoDB valide
+        // restaurantId: restaurant.id, // ← COMMENTEZ CETTE LIGNE
+        name: restaurant.name,
+        address: restaurant.address
+      };
+      console.log('🏪 Données restaurant envoyées (sans ID):', orderData.restaurant);
+    }
+
+    console.log('📤 Données FINALES envoyées:', JSON.stringify(orderData, null, 2));
+
+    // Appel à l'API
+    const response = await API.post('/orders', orderData, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    console.log('✅ Réponse API réussie:', response.data);
+
+    // Vider le panier
+    dispatch(clearCart());
+
+    // Redirection
+    navigate(`/order-confirmation/${response.data.order._id}`);
+
+  } catch (error) {
+    console.error('❌ Erreur complète:', error);
+    
+    if (error.response) {
+      const { status, data } = error.response;
+      console.error(`❌ Erreur ${status}:`, data);
+      
+      if (data.errors) {
+        const errorDetails = Object.entries(data.errors)
+          .map(([field, message]) => `${field}: ${message}`)
+          .join('\n');
+        alert(`❌ Erreurs de validation:\n${errorDetails}`);
+      } else if (data.message) {
+        alert(`❌ ${data.message}`);
+      }
+    } else {
+      alert('❌ Erreur de connexion au serveur');
+    }
+  } finally {
+    setIsProcessing(false);
+  }
+};
 
   const deliveryFee = 500 // XOF
   const finalTotalXOF = totalXOF + deliveryFee
@@ -253,79 +343,6 @@ const Checkout = () => {
                 </div>
               </label>
             </div>
-
-            {/* Champs spécifiques selon la méthode */}
-            {paymentMethod === 'momo' && (
-              <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-                <h3 className="font-semibold text-blue-800 mb-2">Paiement MoMo</h3>
-                <p className="text-sm text-blue-700 mb-3">
-                  Vous recevrez une demande de paiement sur votre numéro MTN MoMo
-                </p>
-                <div className="space-y-2">
-                  <div>
-                    <label className="block text-sm font-medium text-blue-800">Numéro MoMo</label>
-                    <input 
-                      type="tel"
-                      className="w-full px-3 py-2 border border-blue-300 rounded-md"
-                      placeholder="Votre numéro MTN MoMo"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {paymentMethod === 'flooz' && (
-              <div className="mt-4 p-4 bg-green-50 rounded-lg">
-                <h3 className="font-semibold text-green-800 mb-2">Paiement Flooz</h3>
-                <p className="text-sm text-green-700 mb-3">
-                  Vous serez redirigé vers l'application Flooz pour confirmer le paiement
-                </p>
-                <div className="space-y-2">
-                  <div>
-                    <label className="block text-sm font-medium text-green-800">Numéro Flooz</label>
-                    <input 
-                      type="tel"
-                      className="w-full px-3 py-2 border border-green-300 rounded-md"
-                      placeholder="Votre numéro Flooz"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {paymentMethod === 'card' && (
-              <div className="mt-4 p-4 bg-purple-50 rounded-lg">
-                <h3 className="font-semibold text-purple-800 mb-2">Paiement par carte</h3>
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-sm font-medium text-purple-800">Numéro de carte</label>
-                    <input 
-                      type="text"
-                      className="w-full px-3 py-2 border border-purple-300 rounded-md"
-                      placeholder="1234 5678 9012 3456"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-sm font-medium text-purple-800">Expiration</label>
-                      <input 
-                        type="text"
-                        className="w-full px-3 py-2 border border-purple-300 rounded-md"
-                        placeholder="MM/AA"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-purple-800">CVV</label>
-                      <input 
-                        type="text"
-                        className="w-full px-3 py-2 border border-purple-300 rounded-md"
-                        placeholder="123"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Bouton de confirmation */}

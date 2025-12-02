@@ -2,6 +2,16 @@ import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useDispatch } from 'react-redux'
 import { loginSuccess } from '../../store/slices/authSlice.jsx'
+import axios from 'axios'
+
+// Configuration Axios
+const API = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -45,88 +55,124 @@ const Login = () => {
     return Object.keys(newErrors).length === 0
   }
 
-  // Dans la fonction handleSubmit, remplacez la détection du rôle par :
-const handleSubmit = async (e) => {
-  e.preventDefault()
-  
-  if (!validateForm()) {
-    return
-  }
-
-  setLoading(true)
-
-  try {
-    // Simulation de connexion
-    await new Promise(resolve => setTimeout(resolve, 1000))
-
-    // Détection du rôle basé sur l'email (version corrigée)
-    let role = 'customer'
-    const email = formData.email.toLowerCase()
+  const handleSubmit = async (e) => {
+    e.preventDefault()
     
-    if (email.includes('restaurant') || email.includes('resto')) {
-      role = 'restaurant'
-    } else if (email.includes('livreur') || email.includes('delivery')) {
-      role = 'delivery'
-    } else if (email.includes('admin')) {
-      role = 'admin'
+    if (!validateForm()) {
+      return
     }
 
-    // Pour la démo, créer un utilisateur mock avec les bonnes données
-    const mockUser = {
-      id: 'user-' + Date.now(),
-      name: formData.email.split('@')[0],
-      email: formData.email,
-      role: role,
-      phone: '+229 01 00 00 00 00'
+    setLoading(true)
+
+    try {
+      console.log('📤 Tentative de connexion avec:', { email: formData.email })
+
+      // Appel à l'API Express
+      const response = await API.post('/users/login', {
+        email: formData.email,
+        password: formData.password
+      })
+
+      console.log('📥 Réponse de l\'API:', response.data)
+
+      // Vérification de la structure de réponse
+      if (!response.data || !response.data.user) {
+        throw new Error('Structure de réponse invalide')
+      }
+
+      const { user, token } = response.data
+
+      console.log('✅ Connexion réussie - Utilisateur:', user)
+      console.log('✅ Token reçu:', token)
+
+      // Stocker le token et les infos utilisateur
+      localStorage.setItem('token', token)
+      localStorage.setItem('user', JSON.stringify(user))
+
+      // Dispatch Redux avec les données réelles du backend
+      dispatch(loginSuccess({ 
+        role: user.role, 
+        user: user,
+        token: token
+      }))
+
+      // Redirection selon le rôle
+      switch(user.role) {
+        case 'customer':
+          navigate('/')
+          break
+        case 'restaurant':
+          navigate('/restaurant/dashboard')
+          break
+        case 'delivery':
+          navigate('/delivery/dashboard')
+          break
+        case 'admin':
+          navigate('/admin/dashboard')
+          break
+        default:
+          navigate('/')
+      }
+
+    } catch (error) {
+      console.error('❌ Erreur de connexion:', error)
+
+      // Gestion détaillée des erreurs
+      if (error.response) {
+        const { status, data } = error.response
+        
+        switch(status) {
+          case 401:
+            setErrors({ submit: 'Email ou mot de passe incorrect' })
+            break
+          case 404:
+            setErrors({ submit: 'Aucun compte trouvé avec cet email' })
+            break
+          case 400:
+            setErrors({ submit: data.message || 'Données de connexion invalides' })
+            break
+          case 500:
+            setErrors({ submit: 'Erreur serveur. Veuillez réessayer plus tard.' })
+            break
+          default:
+            setErrors({ submit: data.message || 'Erreur lors de la connexion' })
+        }
+      } else if (error.request) {
+        setErrors({ submit: 'Impossible de contacter le serveur. Vérifiez votre connexion.' })
+      } else {
+        setErrors({ submit: 'Erreur: ' + error.message })
+      }
+    } finally {
+      setLoading(false)
     }
-
-    // Ajouter les données spécifiques au rôle
-    if (role === 'restaurant') {
-      mockUser.restaurantName = "Mon Restaurant"
-      mockUser.restaurantAddress = "123 Rue du Commerce, Cotonou"
-      mockUser.restaurantId = 'resto-' + Date.now()
-    }
-
-    if (role === 'delivery') {
-      mockUser.vehicleType = 'scooter'
-      mockUser.status = 'available'
-    }
-
-    // Connecter l'utilisateur avec les données complètes
-    dispatch(loginSuccess({ role: role, user: mockUser }))
-
-    // Redirection selon le rôle
-    switch(role) {
-      case 'customer':
-        navigate('/')
-        break
-      case 'restaurant':
-        navigate('/restaurant/dashboard')
-        break
-      case 'delivery':
-        navigate('/delivery/dashboard')
-        break
-      case 'admin':
-        navigate('/admin/dashboard')
-        break
-      default:
-        navigate('/')
-    }
-
-  } catch (error) {
-    console.error('Erreur lors de la connexion:', error)
-    setErrors({ submit: 'Email ou mot de passe incorrect' })
-  } finally {
-    setLoading(false)
   }
-}
 
-  // Comptes de démonstration pour tester
+  // Comptes de démonstration pour tester avec le backend
   const demoAccounts = [
-    { email: 'client@demo.com', password: 'demo123', role: 'Client' },
-    { email: 'restaurant@demo.com', password: 'demo123', role: 'Restaurateur' },
-    { email: 'livreur@demo.com', password: 'demo123', role: 'Livreur' },
-    { email: 'admin@demo.com', password: 'demo123', role: 'Administrateur' }
+    { 
+      email: 'client@demo.com', 
+      password: 'demo123', 
+      role: 'Client',
+      description: 'Compte client standard'
+    },
+    { 
+      email: 'resto@demo.com', 
+      password: 'demo123', 
+      role: 'Restaurateur',
+      description: 'Accès dashboard restaurant'
+    },
+    { 
+      email: 'livreur@demo.com', 
+      password: 'demo123', 
+      role: 'Livreur',
+      description: 'Accès espace livreur'
+    },
+    { 
+      email: 'admin@demo.com', 
+      password: 'demo123', 
+      role: 'Administrateur',
+      description: 'Accès administration'
+    }
   ]
 
   const fillDemoAccount = (account) => {
@@ -134,6 +180,60 @@ const handleSubmit = async (e) => {
       email: account.email,
       password: account.password
     })
+    // Effacer les erreurs précédentes
+    setErrors({})
+  }
+
+  // Fonction pour créer un compte de démo rapidement
+  const createDemoAccount = async (role) => {
+    const demoEmail = `${role}@demo.com`
+    const demoPassword = 'demo123'
+    
+    try {
+      setLoading(true)
+      console.log(`🔄 Création du compte démo: ${demoEmail}`)
+
+      const userData = {
+        name: `Utilisateur ${role}`,
+        email: demoEmail,
+        phone: '+229 01 00 00 00',
+        password: demoPassword,
+        role: role,
+        ...(role === 'restaurant' && {
+          restaurantName: `Restaurant ${role}`,
+          restaurantAddress: '123 Rue du Commerce, Cotonou'
+        }),
+        ...(role === 'delivery' && {
+          vehicleType: 'scooter'
+        })
+      }
+
+      const response = await API.post('/users/register', userData)
+      console.log('✅ Compte démo créé:', response.data)
+
+      // Remplir automatiquement le formulaire
+      setFormData({
+        email: demoEmail,
+        password: demoPassword
+      })
+
+      setErrors({ submit: `Compte ${role} créé avec succès! Vous pouvez maintenant vous connecter.` })
+
+    } catch (error) {
+      if (error.response?.status === 409) {
+        // Le compte existe déjà, on remplit juste le formulaire
+        setFormData({
+          email: demoEmail,
+          password: demoPassword
+        })
+        setErrors({ submit: 'Compte démo existant. Vous pouvez vous connecter.' })
+      } else {
+        console.error('❌ Erreur création compte démo:', error)
+        setErrors({ submit: 'Erreur lors de la création du compte démo' })
+      }
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -216,10 +316,20 @@ const handleSubmit = async (e) => {
             </div>
           </div>
 
-          {/* Erreur générale */}
+          {/* Messages */}
           {errors.submit && (
-            <div className="rounded-md bg-red-50 p-4">
-              <p className="text-sm text-red-800">{errors.submit}</p>
+            <div className={`rounded-md p-4 ${
+              errors.submit.includes('succès') || errors.submit.includes('créé') 
+                ? 'bg-green-50' 
+                : 'bg-red-50'
+            }`}>
+              <p className={`text-sm ${
+                errors.submit.includes('succès') || errors.submit.includes('créé')
+                  ? 'text-green-800'
+                  : 'text-red-800'
+              }`}>
+                {errors.submit}
+              </p>
             </div>
           )}
 
@@ -261,35 +371,44 @@ const handleSubmit = async (e) => {
             </div>
           </div>
 
-          <div className="mt-4 grid grid-cols-1 gap-2">
+          <div className="mt-4 space-y-3">
             {demoAccounts.map((account, index) => (
-              <button
-                key={index}
-                onClick={() => fillDemoAccount(account)}
-                className="w-full text-left p-3 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-              >
-                <div className="text-sm font-medium text-gray-900">{account.role}</div>
-                <div className="text-xs text-gray-600">
-                  Email: {account.email} | Mot de passe: {account.password}
-                </div>
-              </button>
+              <div key={index} className="flex space-x-2">
+                <button
+                  onClick={() => fillDemoAccount(account)}
+                  className="flex-1 text-left p-3 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  <div className="text-sm font-medium text-gray-900">{account.role}</div>
+                  <div className="text-xs text-gray-600">
+                    {account.email} | {account.password}
+                  </div>
+                </button>
+                <button
+                  onClick={() => createDemoAccount(account.role.toLowerCase())}
+                  className="px-3 py-2 bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 text-xs font-medium"
+                  disabled={loading}
+                >
+                  Créer
+                </button>
+              </div>
             ))}
           </div>
 
           <p className="mt-3 text-xs text-center text-gray-500">
-            Cliquez sur un compte pour remplir automatiquement le formulaire
+            • "Remplir" pour utiliser un compte existant<br/>
+            • "Créer" pour créer le compte automatiquement
           </p>
         </div>
 
-        {/* Informations de sécurité */}
-        <div className="mt-6 p-4 bg-green-50 rounded-lg">
-          <h3 className="text-sm font-medium text-green-800 mb-2">
-            💡 Pour la démonstration
+        {/* Informations */}
+        <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+          <h3 className="text-sm font-medium text-blue-800 mb-2">
+            💡 Informations de connexion
           </h3>
-          <ul className="text-xs text-green-700 space-y-1">
-            <li>• Utilisez n'importe quel email/mot de passe valides</li>
-            <li>• Le rôle est détecté automatiquement selon l'email</li>
-            <li>• Ou utilisez les comptes de démo ci-dessus</li>
+          <ul className="text-xs text-blue-700 space-y-1">
+            <li>• Utilisez vos identifiants réels ou les comptes démo</li>
+            <li>• Les comptes démo sont créés automatiquement</li>
+            <li>• Le backend Express gère l'authentification réelle</li>
           </ul>
         </div>
       </div>
