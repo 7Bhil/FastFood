@@ -147,31 +147,31 @@ const Login = () => {
     }
   }
 
-  // Comptes de démonstration pour tester avec le backend
+  // Comptes de test réels créés par le backend
   const demoAccounts = [
     { 
-      email: 'client@demo.com', 
-      password: 'demo123', 
-      role: 'Client',
+      email: 'admin@sellexpress.com', 
+      password: 'Admin123!', 
+      role: '👑 Admin',
+      description: 'Accès administration complète'
+    },
+    { 
+      email: 'restaurant@sellexpress.com', 
+      password: 'Restaurant123!', 
+      role: '🍽️ Restaurateur',
+      description: 'Chez Maman - Dashboard restaurant'
+    },
+    { 
+      email: 'livreur@sellexpress.com', 
+      password: 'Livreur123!', 
+      role: '🚴 Livreur',
+      description: 'Espace livreur avec scooter'
+    },
+    { 
+      email: 'client@sellexpress.com', 
+      password: 'Client123!', 
+      role: '👤 Client',
       description: 'Compte client standard'
-    },
-    { 
-      email: 'resto@demo.com', 
-      password: 'demo123', 
-      role: 'Restaurateur',
-      description: 'Accès dashboard restaurant'
-    },
-    { 
-      email: 'livreur@demo.com', 
-      password: 'demo123', 
-      role: 'Livreur',
-      description: 'Accès espace livreur'
-    },
-    { 
-      email: 'admin@demo.com', 
-      password: 'demo123', 
-      role: 'Administrateur',
-      description: 'Accès administration'
     }
   ]
 
@@ -184,57 +184,7 @@ const Login = () => {
     setErrors({})
   }
 
-  // Fonction pour créer un compte de démo rapidement
-  const createDemoAccount = async (role) => {
-    const demoEmail = `${role}@demo.com`
-    const demoPassword = 'demo123'
-    
-    try {
-      setLoading(true)
-      console.log(`🔄 Création du compte démo: ${demoEmail}`)
 
-      const userData = {
-        name: `Utilisateur ${role}`,
-        email: demoEmail,
-        phone: '+229 01 00 00 00',
-        password: demoPassword,
-        role: role,
-        ...(role === 'restaurant' && {
-          restaurantName: `Restaurant ${role}`,
-          restaurantAddress: '123 Rue du Commerce, Cotonou'
-        }),
-        ...(role === 'delivery' && {
-          vehicleType: 'scooter'
-        })
-      }
-
-      const response = await API.post('/users/register', userData)
-      console.log('✅ Compte démo créé:', response.data)
-
-      // Remplir automatiquement le formulaire
-      setFormData({
-        email: demoEmail,
-        password: demoPassword
-      })
-
-      setErrors({ submit: `Compte ${role} créé avec succès! Vous pouvez maintenant vous connecter.` })
-
-    } catch (error) {
-      if (error.response?.status === 409) {
-        // Le compte existe déjà, on remplit juste le formulaire
-        setFormData({
-          email: demoEmail,
-          password: demoPassword
-        })
-        setErrors({ submit: 'Compte démo existant. Vous pouvez vous connecter.' })
-      } else {
-        console.error('❌ Erreur création compte démo:', error)
-        setErrors({ submit: 'Erreur lors de la création du compte démo' })
-      }
-    } finally {
-      setLoading(false)
-    }
-  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -360,55 +310,55 @@ const Login = () => {
           </div>
         </form>
 
-        {/* Comptes de démonstration */}
+        {/* Comptes de test */}
         <div className="mt-6">
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-gray-300" />
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-gray-50 text-gray-500">Comptes de démonstration</span>
+              <span className="px-2 bg-gray-50 text-gray-500">Comptes de test disponibles</span>
             </div>
           </div>
 
-          <div className="mt-4 space-y-3">
+          <div className="mt-4 space-y-2">
             {demoAccounts.map((account, index) => (
-              <div key={index} className="flex space-x-2">
-                <button
-                  onClick={() => fillDemoAccount(account)}
-                  className="flex-1 text-left p-3 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-                >
-                  <div className="text-sm font-medium text-gray-900">{account.role}</div>
-                  <div className="text-xs text-gray-600">
-                    {account.email} | {account.password}
+              <button
+                key={index}
+                onClick={() => fillDemoAccount(account)}
+                className="w-full text-left p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl hover:from-orange-50 hover:to-orange-100 transition-all duration-300 border border-gray-200 hover:border-orange-300 group"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="text-sm font-bold text-gray-900 mb-1">{account.role}</div>
+                    <div className="text-xs text-gray-600 mb-1">{account.description}</div>
+                    <div className="text-xs font-mono text-gray-500">
+                      {account.email}
+                    </div>
                   </div>
-                </button>
-                <button
-                  onClick={() => createDemoAccount(account.role.toLowerCase())}
-                  className="px-3 py-2 bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 text-xs font-medium"
-                  disabled={loading}
-                >
-                  Créer
-                </button>
-              </div>
+                  <div className="text-2xl opacity-50 group-hover:opacity-100 transition-opacity">
+                    →
+                  </div>
+                </div>
+              </button>
             ))}
           </div>
 
-          <p className="mt-3 text-xs text-center text-gray-500">
-            • "Remplir" pour utiliser un compte existant<br/>
-            • "Créer" pour créer le compte automatiquement
+          <p className="mt-4 text-xs text-center text-gray-500">
+            💡 Cliquez sur un compte pour remplir automatiquement le formulaire
           </p>
         </div>
 
         {/* Informations */}
-        <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-          <h3 className="text-sm font-medium text-blue-800 mb-2">
-            💡 Informations de connexion
+        <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+          <h3 className="text-sm font-medium text-blue-800 mb-2 flex items-center">
+            <span className="mr-2">ℹ️</span>
+            Informations importantes
           </h3>
           <ul className="text-xs text-blue-700 space-y-1">
-            <li>• Utilisez vos identifiants réels ou les comptes démo</li>
-            <li>• Les comptes démo sont créés automatiquement</li>
-            <li>• Le backend Express gère l'authentification réelle</li>
+            <li>• Les comptes de test sont créés automatiquement au démarrage</li>
+            <li>• Authentification réelle avec JWT et bcrypt</li>
+            <li>• Redirection automatique selon le rôle</li>
           </ul>
         </div>
       </div>
