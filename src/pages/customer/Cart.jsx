@@ -57,7 +57,95 @@ const Cart = () => {
           </div>
         )}
 
-        {/* ... reste du code du panier inchangé ... */}
+        {/* Liste des articles du panier */}
+        <div className="space-y-4 mb-6">
+          {items.map((item, index) => (
+            <div key={index} className="bg-white rounded-2xl shadow-sm p-4">
+              <div className="flex justify-between items-start mb-3">
+                <div className="flex-1">
+                  <h3 className="font-semibold text-gray-900">{item.name}</h3>
+                  <p className="text-gray-600 text-sm mt-1">
+                    {Math.round(item.price * EUR_TO_XOF)}f x {item.quantity}
+                  </p>
+                  {item.selectedOptions && Object.keys(item.selectedOptions).length > 0 && (
+                    <div className="mt-2 text-xs text-gray-500">
+                      {Object.entries(item.selectedOptions).map(([key, value]) => (
+                        <span key={key} className="mr-2">
+                          {key}: {value}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={() => dispatch(removeFromCart(index))}
+                  className="text-red-500 hover:text-red-700 text-sm"
+                >
+                  Supprimer
+                </button>
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <button
+                    onClick={() => dispatch(updateQuantity({ index, quantity: Math.max(1, item.quantity - 1) }))}
+                    className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200"
+                  >
+                    -
+                  </button>
+                  <span className="font-medium w-8 text-center">{item.quantity}</span>
+                  <button
+                    onClick={() => dispatch(updateQuantity({ index, quantity: item.quantity + 1 }))}
+                    className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200"
+                  >
+                    +
+                  </button>
+                </div>
+                <span className="font-semibold text-gray-900">
+                  {Math.round(item.price * item.quantity * EUR_TO_XOF)}f
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Restaurant info */}
+        {restaurant && (
+          <div className="bg-white rounded-2xl shadow-sm p-4 mb-4">
+            <div className="flex items-center">
+              <img 
+                src={restaurant.image} 
+                alt={restaurant.name}
+                className="w-12 h-12 object-cover rounded-lg mr-3"
+              />
+              <div>
+                <h4 className="font-semibold text-gray-900">{restaurant.name}</h4>
+                <p className="text-sm text-gray-600">{restaurant.deliveryTime} • {restaurant.deliveryFee}f</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Récapitulatif */}
+        <div className="bg-white rounded-2xl shadow-sm p-4 mb-4">
+          <h3 className="font-semibold text-gray-900 mb-3">Récapitulatif</h3>
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600">Sous-total</span>
+              <span>{totalXOF}f</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600">Frais de livraison</span>
+              <span>{deliveryFee}f</span>
+            </div>
+            <div className="border-t pt-2 mt-2">
+              <div className="flex justify-between font-semibold">
+                <span>Total</span>
+                <span className="text-orange-600">{finalTotalXOF}f</span>
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* Bouton de commande modifié */}
         <div className="bg-white rounded-2xl shadow-sm p-4 sticky bottom-4">
